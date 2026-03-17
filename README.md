@@ -1,135 +1,160 @@
-# Solid Mechanics FEM — 1D Linear Finite Element Analysis
+# Finite Element Analysis of 1D Solid Mechanics — From Scratch in Python
 
 **Course:** Materials Simulation Practical | FAU Erlangen-Nürnberg  
 **Tools:** Python · NumPy · Matplotlib
 
-💻 [Notebook](https://github.com/Shahhuseyn/solid_mechanics_fem/blob/main/fem_1d_elastic_bar.ipynb)
+💻 [Notebook](fem_1d_elastic_bar.ipynb)
 
 ---
 
 ## Overview
 
-From-scratch implementation of the Finite Element Method for 1D linear elasticity in Python/NumPy. The project covers the full pipeline: constitutive theory and symmetry reduction of the stiffness tensor, weak-form derivation of the governing equations, linear shape functions and their derivatives, Newton–Cotes numerical integration, global stiffness matrix assembly, enforcement of Dirichlet and Neumann boundary conditions via a permutation-matrix reduction scheme, and element-wise stress recovery across four distinct loading cases.
+From-scratch implementation of the Finite Element Method for 1D linear elasticity in Python/NumPy. The project covers the full pipeline: constitutive tensor symmetry reduction, weak-form derivation, linear shape functions and B-matrix, Newton–Cotes numerical quadrature, global stiffness assembly, Dirichlet/Neumann boundary condition enforcement via permutation-matrix reduction, and element-wise stress recovery across four loading cases.
 
 ---
 
-## Part 1 — Theory: Constitutive Relations & Weak Form (Tasks 1–3)
+## Constitutive Relations & Weak Form
 
-Starting from the local balance of linear momentum in the static case, the strong form is reduced to:
-
-$$\text{div}(\boldsymbol{\sigma}) = -\rho \boldsymbol{b}$$
-
-Combined with Hooke's law σ = C:ε and the infinitesimal strain tensor, this yields the 1D governing equation. The full symmetry analysis of the stiffness tensor C_ijkl is carried out — minor symmetries (from stress/strain symmetry) reduce the 81 independent components to 36, and major symmetry (from the strain energy density) further reduces them to 21. The result is cast in Voigt notation. The 1D weak form is then derived by multiplying by a test function and integrating by parts:
+Starting from the static balance of linear momentum div(σ) = −ρb, Hooke's law σ = C:ε is applied. The full symmetry analysis of the stiffness tensor C_ijkl reduces 81 independent components to 21 via minor symmetries (stress/strain symmetry) and major symmetry (strain energy density), cast in Voigt notation. The 1D weak form is derived by multiplying by a test function and integrating by parts:
 
 $$\int_0^l EA \frac{du}{dx} \frac{d(\delta u)}{dx} \, dx = \int_0^l \rho b \, \delta u \, dx + \bar{t} A \, \delta u \Big|_{\Gamma_t}$$
 
 ---
 
-## Part 2 — Shape Functions & Interpolation (Tasks 4.1–4.2)
+## Shape Functions, Interpolation, and Gradient Approximation
 
-Linear Lagrange shape functions N₁ and N₂ are defined over each element and plotted as overlapping hat functions across the 6-element mesh.
-
-### Linear Shape Functions
+Linear Lagrange shape functions \(N_1\) and \(N_2\) are defined over each element. Their spatial derivatives form the strain-displacement matrix \(B\), which is constant for linear 1D elements. As a result, the strain and stress recovered from the displacement field are elementwise constant.
 
 ![Shape functions](figures/shape_functions_linear.png)
 
-The interpolation accuracy is tested on three functions — linear f(x)=2x+3, sinusoidal f(x)=sin(x), and quadratic f(x)=x² — evaluated on element 2 (nodes 2–3).
+### Interpolation of the displacement field
 
-### Interpolation: Linear Function (element 2)
+Interpolation accuracy is tested for three functions: a linear function \(f(x)=2x+3\), a sinusoidal function \(f(x)=\sin(x)\), and a quadratic function \(f(x)=x^2\).
 
-![Interpolation linear](figures/interpolation_linear.png)
+<table>
+<tr>
+<td><img src="figures/interpolation_linear.png" width="100%"/></td>
+<td><img src="figures/interpolation_sin.png" width="100%"/></td>
+<td><img src="figures/interpolation_quadratic.png" width="100%"/></td>
+</tr>
+<tr>
+<td align="center">Linear function</td>
+<td align="center">Sinusoidal function</td>
+<td align="center">Quadratic function</td>
+</tr>
+</table>
 
-The linear function is reproduced exactly — the interpolated curve overlaps the exact solution with zero error, confirming that linear shape functions exactly represent any function in the same polynomial space.
+The linear function is reproduced exactly, while the sinusoidal and quadratic functions are only approximated, producing a bounded interpolation error.
 
-### Interpolation: Sinusoidal Function (element 2)
+### Approximation of the displacement gradient
 
-![Interpolation sinusoidal](figures/interpolation_sin.png)
+The same three functions are then examined at the derivative level by comparing the exact gradient with the gradient reconstructed from the shape-function derivatives \(B = dN/dx\).
 
-For sin(x), the linear interpolation underestimates the curved function, producing a visible but bounded error that peaks near the midpoint of the element.
+<table>
+<tr>
+<td><img src="figures/interpolation_linear_2.png" width="100%"/></td>
+<td><img src="figures/interpolation_sin_2.png" width="100%"/></td>
+<td><img src="figures/interpolation_quadratic_2.png" width="100%"/></td>
+</tr>
+<tr>
+<td align="center">Derivative of linear function</td>
+<td align="center">Derivative of sinusoidal function</td>
+<td align="center">Derivative of quadratic function</td>
+</tr>
+</table>
 
-### Interpolation: Quadratic Function (element 2)
-
-![Interpolation quadratic](figures/interpolation_quadratic.png)
-
-Similarly, x² is only approximated — the interpolated line overshoots near the element endpoints and undershoots in the middle. The error profile is symmetric and bounded.
-
-The same study is repeated on element 5 (nodes 5–6), demonstrating that the qualitative behavior is preserved regardless of element position while the magnitudes shift with local function curvature.
-
-### Interpolation: Linear Function (element 5)
-
-![Interpolation linear 2](figures/interpolation_linear_2.png)
-
-### Interpolation: Sinusoidal Function (element 5)
-
-![Interpolation sinusoidal 2](figures/interpolation_sin_2.png)
-
-### Interpolation: Quadratic Function (element 5)
-
-![Interpolation quadratic 2](figures/interpolation_quadratic_2.png)
-
-The strain matrix **B** (derivative of shape functions) is constant over each linear element, meaning the stress σ = E·B·û is elementwise constant — stress discontinuities across element boundaries are therefore expected.
+Because linear shape functions have constant derivatives within each element, the gradient approximation is piecewise constant. This is why the stress field recovered from linear bar elements is also piecewise constant, with jumps possible across element boundaries.
 
 ---
 
-## Part 3 — Numerical Integration (Tasks 5.1–5.3)
+## Numerical Quadrature
 
-Three Newton–Cotes quadrature rules are implemented and tested:
+Three Newton–Cotes rules are implemented and validated:
 
-| Rule | Points | Exact for degree |
+| Rule | Points | Exact for polynomial degree |
 |---|---|---|
 | Trapezoidal | 2 | ≤ 1 |
 | Simpson's | 3 | ≤ 2 |
 | 3/8 Rule | 4 | ≤ 3 |
 
-The element stiffness matrix for a 1D bar (E = 210,000 N/mm², A = 25 mm², L = 50 mm) is computed via trapezoidal quadrature and verified analytically. The displacement at the free end matches the analytical solution u(L) = FL/(EA) with negligible error.
+The element stiffness matrix for a 1D bar (E = 210,000 N/mm², A = 25 mm², L = 50 mm) is computed via trapezoidal quadrature and verified analytically.
 
 ---
 
-## Part 4 — Global Assembly & Boundary Conditions (Tasks 6–7)
+## Global Assembly & Boundary Conditions
 
-An element assembly routine loops over all elements, maps local stiffness matrices into the global system via node connectivity, and produces the symmetric tridiagonal global stiffness matrix K. The normalized matrix matches the classic 1D spring chain structure.
-
-Dirichlet boundary conditions are enforced using a permutation-matrix reduction: a matrix P of shape (n−m)×n maps the full displacement vector to the reduced free-DOF subspace, solves the reduced system K_r·d_r = f_r, and reconstructs the full solution via back-substitution.
+An assembly routine maps local element stiffness matrices into the global system via node connectivity, producing the symmetric tridiagonal global stiffness matrix K. Dirichlet boundary conditions are enforced using a permutation-matrix reduction: a matrix P of shape (n−m)×n maps the full displacement vector to the free-DOF subspace, solves the reduced system K_r·d_r = f_r, and reconstructs the full solution via back-substitution.
 
 ---
 
-## Part 5 — Stress Recovery & Loading Cases (Task 8)
+## Stress Recovery & Loading Cases
 
-Element-wise stress is recovered from σ = E·B·û. Four loading cases are solved on the 6-element, 7-node bar (E = 210,000 N/mm², A = 25 mm², L = 50 mm):
+Element-wise stress is recovered as σ = E·B·û on a 6-element, 7-node bar with total length L = 50 mm (E = 210,000 N/mm², A = 25 mm²). Nodes are indexed 0–6.
 
-### Case 1 — Pure Neumann (tip load F = 5 N)
+### Case 1 — Mixed Dirichlet–Neumann BCs (u(0) = 0, tip load F = 5 N)
 
-![Displacement Neumann](figures/displacement_neumann.png)
-![Stress Neumann](figures/stress_neumann.png)
+<table>
+<tr>
+<td><img src="figures/displacement_neumann.png" width="100%"/></td>
+<td><img src="figures/stress_neumann.png" width="100%"/></td>
+</tr>
+<tr>
+<td align="center">Displacement</td>
+<td align="center">Stress</td>
+</tr>
+</table>
 
-Linear displacement field and uniform stress σ = 0.2 N/mm² across all elements, consistent with the analytical solution for a bar under axial end load with no body forces.
+The displacement varies linearly and the stress remains uniform at σ = 0.2 N/mm² across all elements, consistent with the analytical solution for an axially loaded bar with one fixed end and an applied end force.
 
-### Case 2 — Double Dirichlet (u(0) = 0, u(node 3) = 0.01 mm)
+### Case 2 — Double Dirichlet (u(0) = 0, u(25 mm) = 0.01 mm)
 
-![Displacement double Dirichlet](figures/displacement_dirichlet_double.png)
-![Stress double Dirichlet](figures/stress_dirichlet_double.png)
+<table>
+<tr>
+<td><img src="figures/displacement_dirichlet_double.png" width="100%"/></td>
+<td><img src="figures/stress_dirichlet_double.png" width="100%"/></td>
+</tr>
+<tr>
+<td align="center">Displacement</td>
+<td align="center">Stress</td>
+</tr>
+</table>
 
-Displacement ramps linearly up to the prescribed midpoint value and plateaus thereafter. The stress is elevated in the constrained region and drops sharply in the free segment — physically consistent with the imposed displacement gradient.
+Displacement ramps linearly to the prescribed value at x = 25 mm and plateaus thereafter. Stress is elevated in the constrained region and drops sharply in the free segment.
 
-### Case 3 — Internal + End Load (F_node3 = 30 N, F_end = 40 N)
+### Case 3 — Internal + End Load (u(0) = 0, F_node3 = 30 N, F_end = 40 N)
 
-![Displacement internal load](figures/displacement_internal_load.png)
-![Stress internal load](figures/stress_internal_load.png)
+<table>
+<tr>
+<td><img src="figures/displacement_internal_load.png" width="100%"/></td>
+<td><img src="figures/stress_internal_load.png" width="100%"/></td>
+</tr>
+<tr>
+<td align="center">Displacement</td>
+<td align="center">Stress</td>
+</tr>
+</table>
 
 A concentrated internal load at node 3 produces a stress jump at that location. Elements to the left carry the combined load while elements to the right carry only the end load, resulting in a piecewise-constant stress profile with a clear discontinuity.
 
-### Case 4 — Combined BCs (u(0) = 0, u(6) = 0.0015 mm, internal loads)
+### Case 4 — Combined BCs (u(0) = 0, u(50 mm) = 0.0015 mm, internal and end loads)
 
-![Displacement combined](figures/displacement_combined_bc.png)
-![Stress combined](figures/stress_combined_bc.png)
+<table>
+<tr>
+<td><img src="figures/displacement_combined_bc.png" width="100%"/></td>
+<td><img src="figures/stress_combined_bc.png" width="100%"/></td>
+</tr>
+<tr>
+<td align="center">Displacement</td>
+<td align="center">Stress</td>
+</tr>
+</table>
 
-With both ends constrained and internal loads of opposite sign applied, the displacement profile is nonlinear and the stress field exhibits a pronounced jump at the internal load node, with the stress level reversing across the bar.
+With both ends constrained, the displacement remains continuous but changes slope across the internal load location. The stress field is piecewise constant and exhibits a clear jump at the loaded node, increasing from approximately 4.7 N/mm² on the left to 7.9 N/mm² on the right.
 
 ---
 
 ## Requirements
-
-```
+```bash
 pip install numpy matplotlib
 ```
 
