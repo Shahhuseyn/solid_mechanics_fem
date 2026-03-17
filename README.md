@@ -3,7 +3,7 @@
 **Course:** Materials Simulation Practical | FAU Erlangen-Nürnberg  
 **Tools:** Python · NumPy · Matplotlib
 
-💻 [Notebook](fem_1d_elastic_bar.ipynb)
+💻 [Notebook (report + code)](fem_1d_elastic_bar.ipynb)
 
 ---
 
