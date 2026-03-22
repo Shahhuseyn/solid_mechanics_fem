@@ -25,7 +25,14 @@ $$\int_0^l EA \frac{du}{dx} \frac{d(\delta u)}{dx} \, dx = \int_0^l \rho b \, \d
 
 Linear Lagrange shape functions \(N_1\) and \(N_2\) are defined over each element. Their spatial derivatives form the strain-displacement matrix \(B\), which is constant for linear 1D elements. As a result, the strain and stress recovered from the displacement field are elementwise constant.
 
-![Shape functions](figures/shape_functions_linear.png)
+<table>
+  <tr>
+    <td align="center"><img src="figures/shape_functions_linear.png" width="500"/></td>
+  </tr>
+  <tr>
+    <td align="center">Shape functions N₁ and N₂ </td>
+  </tr>
+</table>
 
 ### Interpolation of the displacement field
 
